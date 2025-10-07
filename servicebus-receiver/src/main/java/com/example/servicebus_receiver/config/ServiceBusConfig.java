@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class ServiceBusConfig {
     @Value("${spring.cloud.azure.servicebus.connection-string}")
     private String serviceBusConnection;
-    @Value("${servicebus.namespace}")
+    @Value("${servicebus.sender.namespace}")
     private String namespace;
     @Value("${spring.profiles.active}")
     private String profile;
