@@ -11,6 +11,7 @@ import com.example.servicebus_receiver.model.BasicDetails;
 import com.example.servicebus_receiver.repository.BasicDetailsRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.lettuce.core.SetArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -38,8 +39,6 @@ public class QueueListener {
         ObjectMapper objectMapper = new ObjectMapper();
         ServiceBusMessageBody serviceBusMessageBody = objectMapper.readValue(body, ServiceBusMessageBody.class);
 
-        //  List <BasicDetails> basicDetails=new ArrayList<>();
-
         serviceBusMessageBody.getEmployees().stream().forEach(x -> {
             try {
 
@@ -47,31 +46,29 @@ public class QueueListener {
                         .dob(x.getDob()).lastName(x.getLastName()).phone(x.getPhone()).
                         email(x.getEmail()).gender(x.getGender()).
                         isProcessed(Boolean.TRUE).build());
+                //update processed queue with employee id of processed records
                 ServiceBusProcessedMsg serviceBusProcessedMsg = ServiceBusProcessedMsg.builder().employeeId(basicDetails.getEmployeeId()).isProcessed(basicDetails.getIsProcessed()).build();
                 String jsonString = "";
-
                 jsonString = objectMapper.writeValueAsString(serviceBusProcessedMsg);
-
                 ServiceBusMessage serviceBusMessage = new ServiceBusMessage(jsonString);
-
                 serviceBusClient.sendMessage(serviceBusMessage);
-
-
-                if (connection.sync().exists(serviceBusMessageBody.getRedisStatusKey()).equals(0))
-                    throw new RuntimeException("Redis key does not exist");
-                connection.sync().set(serviceBusMessageBody.getRedisStatusKey(), "processed");
 
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             } catch (Exception e) {
-                if (connection.sync().exists(serviceBusMessageBody.getRedisStatusKey()).equals(0))
+                String result = connection.sync().set(serviceBusMessageBody.getRedisStatusKey(), "failed", SetArgs.Builder.xx());
+                if (result == null) {
                     throw new RuntimeException("Redis key does not exist");
-                connection.sync().set(serviceBusMessageBody.getRedisStatusKey(), "failed");
+                }
                 log.warn("Some thing went wrong while updating record", e.getMessage());
 
             }
         });
-
+        //Update Redis Cache
+        String result = connection.sync().set(serviceBusMessageBody.getRedisStatusKey(), "processed", SetArgs.Builder.xx());
+        if (result == null) {
+            throw new RuntimeException("Redis key does not exist");
+        }
     }
 
 }
