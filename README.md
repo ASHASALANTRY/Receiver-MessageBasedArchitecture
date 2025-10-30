@@ -17,6 +17,15 @@ It listens to an Azure Service Bus queue for incoming **employee details**, proc
 
 ---
 
+## 🖼️ System Architecture
+
+The **Receiver Microservice** is a key component in the message-based architecture.  
+It consumes messages from **Azure Service Bus**, processes them, persists data to **PostgreSQL**, updates **Redis** cache for real-time status tracking, and publishes processed records for downstream systems.
+
+![Receiver Architecture](./receiver_system_diagram.png)
+
+---
+
 ## 🔑 Key Components
 
 | Component | Purpose |
